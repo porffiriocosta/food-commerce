@@ -5,7 +5,7 @@ import styled from 'styled-components'
 export const Container = styled(Link)`
   position: absolute;
   right: 1.5rem;
-  bottom: 0.5rem;
+  top: 0.5rem;
 
   background: ${({ theme }) => theme.colors.red};
   padding: 0.5rem 1rem;
