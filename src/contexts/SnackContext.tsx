@@ -24,7 +24,7 @@ export function SnackProvider({ children }: SnackProviderProps) {
   const [iceCreams, setIceCreams] = useState<SnackData[]>([])
 
   useEffect(() => {
-    ; (async () => {
+    ;(async () => {
       try {
         const burgerRequest = await getBurgers()
         const pizzaRequest = await getPizzas()
