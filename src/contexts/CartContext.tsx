@@ -1,14 +1,13 @@
 import { createContext, ReactNode, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
 
+import { CustomerData } from '../interfaces/CustomerData'
+import { Snack } from '../interfaces/Snack'
 import { SnackData } from '../interfaces/SnackData'
 
 import { snackEmoji } from '../helpers/snackEmoji'
-
-interface Snack extends SnackData {
-  quantity: number
-  subtotal: number
-}
+import { processCheckout } from '../services/api'
 
 interface CartContextProps {
   cart: Snack[]
@@ -17,6 +16,7 @@ interface CartContextProps {
   snackCartIncrement: (snack: Snack) => void
   snackCartDecrement: (snack: Snack) => void
   confirmOrder: () => void
+  payOrder: (customer: CustomerData) => void
 }
 
 interface CartProviderProps {
@@ -25,8 +25,25 @@ interface CartProviderProps {
 
 export const CartContext = createContext({} as CartContextProps)
 
+const localStorageKey = '@FoodCommerce:cart'
+
 export function CartProvider({ children }: CartProviderProps) {
-  const [cart, setCart] = useState<Snack[]>([])
+  const navigate = useNavigate()
+  const [cart, setCart] = useState<Snack[]>(() => {
+    const value = localStorage.getItem(localStorageKey)
+    if (value) return JSON.parse(value)
+
+    return []
+  })
+
+  function saveCart(items: Snack[]) {
+    setCart(items)
+    localStorage.setItem(localStorageKey, JSON.stringify(items))
+  }
+
+  function clearCart() {
+    localStorage.removeItem(localStorageKey)
+  }
 
   function addSnackIntoCart(snack: SnackData): void {
     const snackExistentInCart = cart.find(
@@ -46,7 +63,7 @@ export function CartProvider({ children }: CartProviderProps) {
       })
 
       toast.success(`Outro(a) ${snackEmoji(snack.snack)} ${snack.name} adicionado nos pedidos!`)
-      setCart(newCart)
+      saveCart(newCart)
 
       return
     }
@@ -55,13 +72,13 @@ export function CartProvider({ children }: CartProviderProps) {
     const newCart = [...cart, newSnack] // push de um array
 
     toast.success(`${snackEmoji(snack.snack)} ${snack.name} adicionado nos pedidos!`)
-    setCart(newCart)
+    saveCart(newCart)
   }
 
   function removeSnackFromCart(snack: Snack) {
     const newCart = cart.filter((item) => !(item.id === snack.id && item.snack === snack.snack))
 
-    setCart(newCart)
+    saveCart(newCart)
   }
 
   function updateSnackQuantity(snack: Snack, newQuantity: number) {
@@ -85,7 +102,7 @@ export function CartProvider({ children }: CartProviderProps) {
       return item
     })
 
-    setCart(newCart)
+    saveCart(newCart)
   }
 
   function snackCartIncrement(snack: Snack) {
@@ -97,6 +114,25 @@ export function CartProvider({ children }: CartProviderProps) {
   }
 
   function confirmOrder() {
+    navigate('/payment')
+  }
+
+  async function payOrder(customer: CustomerData) {
+    try {
+      const response = await processCheckout(cart, customer)
+
+      if (response.data.status !== 'PAID') {
+        toast.error('Erro ao processar o pagamento, por favor, tente novamente mais tarde.')
+        return
+      }
+
+      clearCart()
+
+      navigate(`/order/success/${response.data.id}`)
+    } catch (error) {
+      console.error(error)
+      toast.error('Erro ao processar o pedido.')
+    }
     return
   }
 
@@ -109,6 +145,7 @@ export function CartProvider({ children }: CartProviderProps) {
         snackCartIncrement,
         snackCartDecrement,
         confirmOrder,
+        payOrder,
       }}
     >
       {children}
